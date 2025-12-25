@@ -54,5 +54,3 @@ This is the backend server for the SmileFund React Native application.
 ## Database
 Ensure you have MongoDB running locally or update `MONGODB_URI` to point to your MongoDB Atlas cluster.
 
-belloharuna211_db_user
-ihJxynoJyRlz8xaF
