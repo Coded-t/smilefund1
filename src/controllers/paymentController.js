@@ -308,3 +308,17 @@ exports.handleWebhook = async (req, res) => {
         res.sendStatus(500);
     }
 };
+
+/* =====================================================
+   GET TRANSACTION HISTORY
+===================================================== */
+exports.getTransactionHistory = async (req, res) => {
+    try {
+        const transactions = await Transaction.find({ user: req.user._id || req.user.id })
+            .sort({ createdAt: -1 });
+        res.json(transactions);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
