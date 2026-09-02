@@ -10,21 +10,23 @@ try {
     // fallback
 }
 
-// Strict limiter for authentication & OTP (max 10 requests per 15 minutes)
+// Limiter for authentication & OTP (max 30 requests per 1 minute)
 const authLimiter = rateLimit
     ? rateLimit({
-        windowMs: 15 * 60 * 1000,
-        max: 10,
-        message: { message: 'Too many authentication attempts. Please try again after 15 minutes.' }
+        windowMs: 60 * 1000,
+        max: 30,
+        validate: { xForwardedForHeader: false },
+        message: { message: 'Too many authentication attempts. Please try again in 1 minute.' }
     })
     : (req, res, next) => next();
 
-// Strict limiter for PIN verification (max 5 attempts per 5 minutes)
+// Limiter for PIN verification (max 10 attempts per 1 minute)
 const pinLimiter = rateLimit
     ? rateLimit({
-        windowMs: 5 * 60 * 1000,
-        max: 5,
-        message: { message: 'Too many incorrect PIN attempts. Locked for 5 minutes.' }
+        windowMs: 60 * 1000,
+        max: 10,
+        validate: { xForwardedForHeader: false },
+        message: { message: 'Too many incorrect PIN attempts. Please try again in 1 minute.' }
     })
     : (req, res, next) => next();
 

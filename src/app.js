@@ -18,6 +18,9 @@ try {
 
 const app = express();
 
+// Trust reverse proxies (Render, Heroku, Cloudflare, Nginx)
+app.set('trust proxy', 1);
+
 // Security Headers
 if (helmet) {
     app.use(helmet());
@@ -26,14 +29,15 @@ if (helmet) {
 // CORS Policy
 app.use(cors());
 
-// Global Rate Limiter (100 requests per 15 minutes per IP)
+// Global Rate Limiter (300 requests per 1 minute per IP)
 if (rateLimit) {
     const globalLimiter = rateLimit({
-        windowMs: 15 * 60 * 1000,
-        max: 150,
+        windowMs: 60 * 1000,
+        max: 300,
         standardHeaders: true,
         legacyHeaders: false,
-        message: { message: 'Too many requests from this IP, please try again after 15 minutes.' }
+        validate: { xForwardedForHeader: false },
+        message: { message: 'Too many requests from this IP, please try again after 1 minute.' }
     });
     app.use('/api', globalLimiter);
 }
