@@ -1,4 +1,13 @@
 require('dotenv').config();
+const dns = require('dns');
+
+// Use Google Public DNS to resolve MongoDB SRV records if local ISP DNS fails
+try {
+    dns.setServers(['8.8.8.8', '8.8.4.4']);
+} catch (dnsErr) {
+    console.log('Note: Could not set custom DNS servers:', dnsErr.message);
+}
+
 const mongoose = require('mongoose');
 const app = require('./app');
 
@@ -6,7 +15,10 @@ const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/smilefund';
 
 // Connect to MongoDB
-mongoose.connect(MONGODB_URI)
+mongoose.connect(MONGODB_URI, {
+    serverSelectionTimeoutMS: 10000,
+})
+
     .then(() => {
         console.log('Connected to MongoDB');
 

@@ -84,4 +84,10 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
     return await bcrypt.compare(candidatePassword, this.password);
 };
 
+// Method to compare PIN
+userSchema.methods.comparePin = async function (candidatePin) {
+    if (!this.pin) return false;
+    return await bcrypt.compare(candidatePin.toString(), this.pin);
+};
+
 module.exports = mongoose.model('User', userSchema);

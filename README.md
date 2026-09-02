@@ -14,7 +14,7 @@ This is the backend server for the SmileFund React Native application.
    ```bash
    npm install
    ```
-
+MONGODB_URI="mongodb+srv://belloharuna211_db_user:ihJxynoJyRlz8xaF@smilefund.hwcnsuz.mongodb.net/?appName=Smilefund"
 2. Set up environment variables:
    Create a `.env` file in the root directory with the following content:
    ```

@@ -135,7 +135,8 @@ exports.login = async (req, res) => {
                 phone: user.phone,
                 institution: user.institution,
                 totalSaving: user.totalSaving || 0,
-                totalDonated: user.totalDonated || 0
+                totalDonated: user.totalDonated || 0,
+                hasPin: !!user.pin
             }
         });
     } catch (error) {
@@ -144,7 +145,21 @@ exports.login = async (req, res) => {
 };
 
 exports.getProfile = async (req, res) => {
-    res.json(req.user);
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const userObj = user.toObject();
+        userObj.hasPin = !!user.pin;
+        delete userObj.password;
+        delete userObj.pin;
+        delete userObj.otp;
+        delete userObj.otpExpires;
+        res.json(userObj);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
 };
 
 exports.updateProfile = async (req, res) => {
@@ -164,7 +179,11 @@ exports.updateProfile = async (req, res) => {
         }
 
         await user.save();
-        res.json({ message: 'Profile updated successfully', user });
+        const userObj = user.toObject();
+        userObj.hasPin = !!user.pin;
+        delete userObj.password;
+        delete userObj.pin;
+        res.json({ message: 'Profile updated successfully', user: userObj });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
@@ -173,28 +192,36 @@ exports.updateProfile = async (req, res) => {
 exports.setupPin = async (req, res) => {
     try {
         const { pin } = req.body;
-        const hashedPin = await bcrypt.hash(pin, 10);
-        req.user.pin = hashedPin;
-        await req.user.save();
-        res.json({ message: 'PIN setup successful' });
+        if (!pin || pin.toString().length < 4) {
+            return res.status(400).json({ success: false, message: 'PIN must be at least 4 digits' });
+        }
+        const user = await User.findById(req.user._id);
+        const hashedPin = await bcrypt.hash(pin.toString(), 10);
+        user.pin = hashedPin;
+        await user.save();
+        res.json({ success: true, message: 'PIN setup successful' });
     } catch (error) {
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ success: false, message: 'Server error', error: error.message });
     }
 };
 
 exports.verifyPin = async (req, res) => {
     try {
         const { pin } = req.body;
-        if (!req.user.pin) {
-            return res.status(400).json({ message: 'PIN not set' });
+        if (!pin) {
+            return res.status(400).json({ success: false, message: 'PIN is required' });
         }
-        const isMatch = await bcrypt.compare(pin, req.user.pin);
+        const user = await User.findById(req.user._id);
+        if (!user.pin) {
+            return res.status(400).json({ success: false, message: 'PIN not set. Please setup a PIN first.' });
+        }
+        const isMatch = await bcrypt.compare(pin.toString(), user.pin);
         if (!isMatch) {
-            return res.status(400).json({ message: 'Invalid PIN' });
+            return res.status(400).json({ success: false, message: 'Invalid PIN' });
         }
-        res.json({ message: 'PIN verified' });
+        res.json({ success: true, message: 'PIN verified successfully' });
     } catch (error) {
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ success: false, message: 'Server error', error: error.message });
     }
 };
 
@@ -227,7 +254,8 @@ exports.verifyOTP = async (req, res) => {
                 email: user.email,
                 roles: user.roles,
                 totalDonated: user.totalDonated || 0,
-                totalSaving: user.totalSaving || 0
+                totalSaving: user.totalSaving || 0,
+                hasPin: !!user.pin
             }
         });
     } catch (error) {
