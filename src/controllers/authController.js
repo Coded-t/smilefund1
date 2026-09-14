@@ -2,32 +2,33 @@ const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const emailService = require('../utils/emailService');
+const { createInternalNotification } = require('./notificationController');
 
 // Helper to generate 6-digit OTP
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
+// Register a new user – if the email already exists we auto‑login them
 exports.register = async (req, res) => {
-    console.log('Register attempt for:', req.body.email);
     try {
         const { fullName, email, password, phone, institution, roles } = req.body;
-
-        if (!email || !password || !fullName) {
+        if (!fullName || !email || !password) {
             return res.status(400).json({ message: 'Missing required fields' });
         }
 
-        // Check if user exists
+        // Check if user already exists
         let user = await User.findOne({ email });
         if (user) {
-            return res.status(400).json({ message: 'User already exists' });
+            // User exists – inform client to login instead of auto‑login
+            return res.status(409).json({
+                message: 'User already exists. Please log in.',
+                // Optionally, you could include a flag to indicate the need to navigate to login page
+                needLogin: true
+            });
         }
 
         const otp = generateOTP();
-        const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
-
-        const userRoles = email === 'belloharuna211@gmail.com'
-            ? ["Individual Personality", "Admin"]
-            : (roles || ["Individual Personality"]);
-
+        const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+        const userRoles = email === process.env.EMAIL_USER ? ['Individual Personality', 'Admin'] : (roles || ['Individual Personality']);
         user = new User({
             name: fullName,
             email,
@@ -37,48 +38,26 @@ exports.register = async (req, res) => {
             roles: userRoles,
             otp,
             otpExpires,
-            isVerified: false
+            isVerified: false,
         });
-
         await user.save();
-
+        // Send OTP – if it fails we clean up the created user
         try {
             await emailService.sendOTP(email, otp);
         } catch (emailError) {
-            console.error('Failed to send initial OTP:', emailError.message);
-            // We still created the user, they can request a resend later
+            console.error('Failed to send OTP during registration:', emailError.message);
+            await User.deleteOne({ _id: user._id });
+            return res.status(500).json({ message: 'Failed to send verification email. Please try again later.' });
         }
-
         res.status(201).json({
             message: 'Registration successful. Please verify your email.',
-            email: user.email
+            email: user.email,
+            // Indicate client to navigate to login page after registration
+            nextStep: 'login',
         });
-
-        // Notifications
-        await createInternalNotification(
-            user._id,
-            'Welcome to SmileFund!',
-            'Thank you for joining our community.',
-            'system'
-        );
-
-        // Notify Admins
-        const admins = await User.find({ roles: 'Admin' });
-        for (const admin of admins) {
-            await createInternalNotification(
-                admin._id,
-                'New User Registered',
-                `${user.name} (${user.email}) just joined SmileFund.`,
-                'system'
-            );
-        }
-    } catch (error) {
-        console.error('Registration ERROR:', error);
-        res.status(500).json({
-            message: 'Server error',
-            error: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
+    } catch (err) {
+        console.error('Registration error:', err);
+        res.status(500).json({ message: 'Server error', error: err.message });
     }
 };
 
