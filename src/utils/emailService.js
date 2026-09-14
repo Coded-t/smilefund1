@@ -5,10 +5,13 @@ const nodemailer = require('nodemailer');
 // Helper to send email via Brevo REST API (HTTPS port 443 - bypasses all SMTP blocks)
 function sendBrevoEmail({ to, subject, html }) {
   return new Promise((resolve, reject) => {
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || 'myappsmilefund@gmail.com';
+    const senderName = process.env.EMAIL_SENDER_NAME || 'SmileFund';
+
     const payload = JSON.stringify({
       sender: {
-        name: 'SmileFund',
-        email: process.env.EMAIL_USER || 'myappsmilefund@gmail.com',
+        name: senderName,
+        email: senderEmail,
       },
       to: [{ email: to }],
       subject: subject,
